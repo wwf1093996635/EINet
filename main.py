@@ -56,10 +56,10 @@ def train(args=None, dicts_path=None, **kw):
 
 def scan_param_files(path):
     files_path = os.listdir(path)
-    pattern_model = re.compile(r'dict_model_(.*)\.py')
-    pattern_optimizer = re.compile(r'dict_optimizer_(.*)\.py')
+    pattern_model = re.compile(r'dict_model(.*)\.py')
+    pattern_optimizer = re.compile(r'dict_optimizer(.*)\.py')
     pattern_trainer = re.compile(r'dict_trainer(.*)\.py')
-    patern_data_loader = re.compile(r'dict_data_loader_(.*)\.py')
+    patern_data_loader = re.compile(r'dict_data_loader(.*)\.py')
     model_files, optimizer_files, trainer_files, data_loader_files = [], [], [], []
     for file_name in files_path:
         #print(file_name)
