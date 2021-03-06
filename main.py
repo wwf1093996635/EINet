@@ -6,36 +6,33 @@ import warnings
 import importlib
 import config_sys
 
-
 # useful commands
+# python main.py --task copy --path ./Instances/TP-1/  //move necessary files for training and analysis to path.
 
-# python cmd.py --task copy --path ./Instances/TP-1  //move necessary files for training and analysis to path.
+
 
 import os
 import shutil
 import argparse
 import warnings
 
-args = parser.parse_args()
-
-#from config import Options
-from Trainers import Trainer, Evaluator
-
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
-from utils import scan_files
+from utils import scan_files, copy_files
 
+from Trainers import Trainer
 import Models
 import Optimizers
 
 parser = argparse.ArgumentParser(description='Parse args.')
-parser.add_argument('-d', '-device', type=str, dest='device', default=None, help='device')
-parser.add_argument('-t', '-task', type=str, dest='task', default=None, help='task to do')
-parser.add_argument('-p', '-path', type=str, dest='path', default=None, help='a path to current directory. required in some tasks.')
-parser.add_argument('-o', '-optimizer', dest='optimizer', type=str, default=None, help='optimizer type. BP, TP, CHL, etc.')
-parser.add_argument('-tr', '-trainer', dest='trainer', type=str, default=None, help='trainer type.')
-parser.add_argument('-m', '-model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
+parser.add_argument('-d', '--device', type=str, dest='device', default=None, help='device')
+parser.add_argument('-t', '--task', type=str, dest='task', default=None, help='task to do')
+parser.add_argument('-p', '--path', type=str, dest='path', default=None, help='a path to current directory. required in some tasks.')
+parser.add_argument('-o', '--optimizer', dest='optimizer', type=str, default=None, help='optimizer type. BP, TP, CHL, etc.')
+parser.add_argument('-tr', '--trainer', dest='trainer', type=str, default=None, help='trainer type.')
+parser.add_argument('-m', '--model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
 parser.add_argument('-data_loader', type=str, default=None, help='data loader type.')
-parser.add_argument('-pp', '-params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
+parser.add_argument('-pp', '--params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
+parser.add_argument('')
 args = parser.parse_args()
 
 def train(args=None, dicts_path=None, **kw):
@@ -222,28 +219,17 @@ if __name__=="__main__":
             'config_sys.py',
         ]
 
+        '''
         for file in file_list:
             #shutil.copy2(file, path + file)
             if os.path.exists(path+file):
                 os.system('rm -r %s'%(path+file))
             os.system('cp -r %s %s'%(file, path+file))
+        '''
+        copy_files(file_list, path, )
+
     elif task in ['train']:
         train(args)
     else:
         raise Exception('Invalid task: %s'%str(task))
 
-def copy_files(file_list, path, sys_type='linux'):
-    if not dest.endswith('/'):
-        dest += '/'
-
-    if sys_type in ['linux']:
-        for file in file_list:
-            #shutil.copy2(file, dest + file)
-            if os.path.exists(path+file):
-                os.system('rm -r %s'%(path+file))
-            os.system('cp -r %s %s'%(file, dest+file))
-    elif sys_type in ['windows']:
-        # to be implemented 
-        pass
-    else:
-        raise Exception('copy_files: Invalid sys_type: '%str(sys_type))
