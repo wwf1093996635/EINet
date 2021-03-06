@@ -4,26 +4,38 @@ import re
 import argparse
 import warnings
 import importlib
-
 import config_sys
+
+
+# useful commands
+
+# python cmd.py --task copy --path ./Instances/TP-1  //move necessary files for training and analysis to path.
+
+import os
+import shutil
+import argparse
+import warnings
+
+args = parser.parse_args()
 
 #from config import Options
 from Trainers import Trainer, Evaluator
 
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
+from utils import scan_files
 
 import Models
 import Optimizers
 
 parser = argparse.ArgumentParser(description='Parse args.')
-parser.add_argument('--device', type=str, default=None, help='device')
-parser.add_argument('--task', type=str, default=None, help='task to do')
-parser.add_argument('--path', type=str, default=None, help='a path to current directory. must be used in some tasks.')
-parser.add_argument('--optimizer', type=str, default=None, help='optimizer type. BP, TP, CHL, etc.')
-parser.add_argument('--trainer', type=str, default=None, help='trainer type.')
-parser.add_argument('--model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
-parser.add_argument('--data_loader', type=str, default=None, help='data loader type.')
-parser.add_argument('--dicts_path', type=str, default=None, help='path to folder that stores param dict files.')
+parser.add_argument('-d', '-device', type=str, dest='device', default=None, help='device')
+parser.add_argument('-t', '-task', type=str, dest='task', default=None, help='task to do')
+parser.add_argument('-p', '-path', type=str, dest='path', default=None, help='a path to current directory. required in some tasks.')
+parser.add_argument('-o', '-optimizer', dest='optimizer', type=str, default=None, help='optimizer type. BP, TP, CHL, etc.')
+parser.add_argument('-tr', '-trainer', dest='trainer', type=str, default=None, help='trainer type.')
+parser.add_argument('-m', '-model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
+parser.add_argument('-data_loader', type=str, default=None, help='data loader type.')
+parser.add_argument('-pp', '-params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
 args = parser.parse_args()
 
 def train(args=None, dicts_path=None, **kw):
@@ -34,9 +46,8 @@ def train(args=None, dicts_path=None, **kw):
         if args.dicts_path is not None:
             dicts_path = args.dicts_path
         else:
-            dicts_path = './params/'
-    
-    sys.path.append(dicts_path)
+            +dicts_path = './params/'
+        sys.path.append(dicts_path)
 
     model_dict, optimizer_dict, trainer_dict, data_loader_dict = get_param_dicts(args)
 
@@ -55,6 +66,14 @@ def train(args=None, dicts_path=None, **kw):
     model.analyze(data_loader=data_loader)
 
 def scan_param_files(path):
+    if not path.endswith('/'):
+        path.append('/')
+    model_files = scan_files(path, r'dict_model(.*)\.py')
+    optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py')
+    trainer_files = scan_files(path, r'dict_trainer(.*)\.py')
+    data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py')
+    return model_files, optimizer_files, trainer_files, data_loader_files
+    '''
     files_path = os.listdir(path)
     pattern_model = re.compile(r'dict_model(.*)\.py')
     pattern_optimizer = re.compile(r'dict_optimizer(.*)\.py')
@@ -83,6 +102,7 @@ def scan_param_files(path):
                 files.remove(file)
 
     return model_files, optimizer_files, trainer_files, data_loader_files
+    '''
 
 def get_param_dicts(args):
     model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
@@ -140,48 +160,6 @@ def get_param_files(args, files_path='./params/'):
 
     return model_file, optimizer_file, trainer_file, data_loader_file
 
-'''
-def train():
-    options = Options()
-    options.build() #build DataLoader, Optimizer, Trainer, etc.    
-    options.save(path_="./config/beforeTrain/")
-    options.optimizer.scheduler_forward.verbose = True
-    options.optimizer.scheduler_out.verbose = True
-    options.optimizer.scheduler_rec.verbose = True
-    options.trainer.train()
-    options.save(path_="./config/afterTrain/")
-'''
-
-if __name__=="__main__":
-    task = 'train' if args.task is None else args.task
-    
-    param_dicts = os.listdir('./params/')
-    
-    
-    if task in ['copy', 'copy_files', 'copy_file']: # copy necessary files for training and 
-        path = args.path
-        ensure_path(args.path)
-        file_list = [
-            'Models',
-            'Optimizers',
-            'Trainers.py',
-            'DataLoaders.py',
-            'params',
-            'config_sys.py',
-            'utils.py',
-            'utils_model.py',
-            'main.py',
-        ]
-
-        for file in file_list:
-            #shutil.copy2(file, path + file)
-            if os.path.exists(path+file):
-                os.system('rm -r %s'%(path+file))
-            os.system('cp -r %s %s'%(file, path+file))
-    elif task in ['train']:
-        train(args)
-    else:
-        raise Exception('Invalid task: %s'%str(task))
 
 def scan_models(name, path):
     if not os.path.exists(path):
@@ -214,23 +192,58 @@ def scan_models(name, path):
     '''
     return select_file(name, files, default_file=None, match_prefix='', match_suffix='', file_type='saved_model')
 
-'''
-def load_and_evaluate():
-    options = Options(mode="init", items=["data_loader"])
-    options.build()
-    model = load(options)
-    evaluate(model, options)
+if __name__=="__main__":
+    if args.task is None:
+        task = 'train'
+        warnings.warn('Task is not given from args. Using default task: train.')
+    else:
+        task = args.task
+    
 
-def load(options):
-    model = load_model(dir_="./saved_models/EINet_epoch=afterTrain", options=options)
-    return model
+    param_dicts = os.listdir('./params/')
+    
+    if task in ['copy', 'copy_files', 'copy_file']: # copy necessary files for training and 
+        path = args.path
+        ensure_path(args.path)
+        file_list = [
+            #'cmd.py',
+            'Models',
+            'Agent.py',
+            'Arenas.py',
+            'Trainers.py',
+            'Optimizers',
+            'Analyzer.py',
+            'config.py',
+            'main.py',
+            'config.py',
+            'utils_agent.py',
+            'utils_arena.py',
+            'utils_anal.py',
+            'config_sys.py',
+        ]
 
-def evaluate(model, options):
-    evaluator = Evaluator(options=options)
-    evaluator.bind_data_loader(options.data_loader)
-    evaluator.bind_model(model)
-    evaluator.evaluate()
-'''
+        for file in file_list:
+            #shutil.copy2(file, path + file)
+            if os.path.exists(path+file):
+                os.system('rm -r %s'%(path+file))
+            os.system('cp -r %s %s'%(file, path+file))
+    elif task in ['train']:
+        train(args)
+    else:
+        raise Exception('Invalid task: %s'%str(task))
 
+def copy_files(file_list, path, sys_type='linux'):
+    if not dest.endswith('/'):
+        dest += '/'
 
-
+    if sys_type in ['linux']:
+        for file in file_list:
+            #shutil.copy2(file, dest + file)
+            if os.path.exists(path+file):
+                os.system('rm -r %s'%(path+file))
+            os.system('cp -r %s %s'%(file, dest+file))
+    elif sys_type in ['windows']:
+        # to be implemented 
+        pass
+    else:
+        raise Exception('copy_files: Invalid sys_type: '%str(sys_type))
