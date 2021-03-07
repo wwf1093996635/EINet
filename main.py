@@ -151,6 +151,14 @@ def get_param_dicts(args):
     device = get_device(args)
     print('Using device: %s'%str(device))
 
+    env_info = {
+        'model_dict': model_dict,
+        'optimizer_dict': optimizer_dict,
+        'trainer_dict': trainer_dict,
+        'data_loader_dict': data_loader_dict,
+        'device': device
+    }
+
     Model_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
     Optimizer_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
     Trainer_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
@@ -158,36 +166,6 @@ def get_param_dicts(args):
 
     return model_dict, optimizer_dict, trainer_dict, data_loader_dict
 
-def scan_models(name, path):
-    if not os.path.exists(path):
-        raise Exception('Path does not exist: %s'%str(path))
-    if not os.path.isdir(path):
-        raise Exception('%s is not a folder.'%str(path))
-    if not path.endswith('/'):
-        path += '/'
-    files = os.listdir()
-    
-    if os.path.exists(path + name): # perfect match
-        return name
-    
-    '''
-    # remove folders
-    for file in files:
-        if os.path.isdir(path + file):
-            #print('%s is a folder, and will be ignored.'%(path + file))
-            files.remove(file)
-
-    matched_files = []
-    matched_count = 0
-    for file in files:
-        if name in file:
-            matched_files.append(file)
-            matched_count += 1
-
-    if matched_count > 1:
-        warnings.warn('Warning: multiple files match name')
-    '''
-    return select_file(name, files, default_file=None, match_prefix='', match_suffix='', file_type='saved_model')
 
 if __name__=="__main__":
     if args.task is None:
