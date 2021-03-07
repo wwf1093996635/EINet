@@ -46,20 +46,22 @@ def get_device(args):
 
 def select_file(name, candidate_files, default_file=None, match_prefix='', match_suffix='.py', file_type=''):
     use_default_file = False
+    perfect_match = False
     if name is None:
         use_default_file = True
     else:
-        if match_prefix + name + match_suffix in candidate_files: # perfect match
-            return match_prefix + name + match_suffix
-        else:
-            matched_count = 0
-            matched_files = []
-            for file_name in candidate_files:
-                if name in file_name:
-                    matched_files.append(file_name)
-                    matched_count += 1
-                    
-        if matched_count==1:
+        matched_count = 0
+        matched_files = []
+        if match_prefix + name + match_suffix in candidate_files: # perfect match. return this file directly
+            perfect_match_name = match_prefix + name + match_suffix
+            perfect_match = True
+            matched_files.append(perfect_match_name)
+            matched_count += 1
+        for file_name in candidate_files:
+            if name in file_name:
+                matched_files.append(file_name)
+                matched_count += 1
+        if matched_count==1: # only one matched file
             return matched_files[0]
         elif matched_count>1: # multiple files matched
             warning = 'multiple %s files matched: '%file_type
@@ -67,7 +69,10 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
                 warning += file_name
                 warning += ' '
             warning += '\n'
-            warning += 'Using first matched file: %s'%matched_files[0]
+            if perfect_match:
+                warning += 'Using perfectly matched file: %s'%matched_files[0]
+            else:
+                warning += 'Using first matched file: %s'%matched_files[0]
             warnings.warn(warning)
             
             return matched_files[0]
@@ -76,9 +81,12 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
             use_default_file = True
 
     if use_default_file:
-        if default_file in candidate_files:
-            print('Using default %s file: %s'%(str(file_type), default_file))
-            return default_file
+        if default_file is None:
+            if default_file in candidate_files:
+                print('Using default %s file: %s'%(str(file_type), default_file))
+                return default_file
+            else:
+                raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
         else:
-            raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
+            raise Exception('Plan to use default %s file. But default %s file is not given.'%(file_type, file_type))
     return None

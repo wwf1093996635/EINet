@@ -30,9 +30,9 @@ parser.add_argument('-p', '--path', type=str, dest='path', default=None, help='a
 parser.add_argument('-o', '--optimizer', dest='optimizer', type=str, default=None, help='optimizer type. BP, TP, CHL, etc.')
 parser.add_argument('-tr', '--trainer', dest='trainer', type=str, default=None, help='trainer type.')
 parser.add_argument('-m', '--model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
-parser.add_argument('-data_loader', type=str, default=None, help='data loader type.')
+parser.add_argument('-dl', '--data_loader', dest='data_loader', type=str, default=None, help='data loader type.')
 parser.add_argument('-pp', '--params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
-parser.add_argument('')
+
 args = parser.parse_args()
 
 def train(args=None, dicts_path=None, **kw):
@@ -62,13 +62,24 @@ def train(args=None, dicts_path=None, **kw):
     trainer.train()    # the model needs some data from data_loader to get response properties.
     model.analyze(data_loader=data_loader)
 
-def scan_param_files(path):
+def scan_param_files(path, raise_not_found_error=True):
     if not path.endswith('/'):
         path.append('/')
     model_files = scan_files(path, r'dict_model(.*)\.py')
     optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py')
     trainer_files = scan_files(path, r'dict_trainer(.*)\.py')
     data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py')
+
+    if raise_not_found_error: # raise error if did not find any param dict
+        if len(model_files)==0:
+            raise Exception('No available model param dict in %s'%str(path))
+        if len(optimizer_files)==0:
+            raise Exception('No available model param dict in %s'%str(path))
+        if len(trainer_files)==0:
+            raise Exception('No available model param dict in %s'%str(path))
+        if len(data_loader_files)==0:
+            raise Exception('No available model param dict in %s'%str(path)) 
+
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
     files_path = os.listdir(path)
@@ -101,6 +112,27 @@ def scan_param_files(path):
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
 
+def get_param_files(args, files_path='./params/'):
+    if not files_path.endswith('/'):
+        files_path += '/'
+    model_files, optimizer_files, trainer_files, data_loader_files = scan_param_files(files_path)
+
+    model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
+        match_prefix='dict_model_', match_suffix='.py', file_type='model')
+    #print(model_file)
+    #input()
+
+    optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
+        match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
+
+    trainer_file = select_file(args.trainer, trainer_files, default_file='dict_trainer.py', 
+        match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
+
+    data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
+        match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
+
+    return model_file, optimizer_file, trainer_file, data_loader_file
+
 def get_param_dicts(args):
     model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
 
@@ -125,38 +157,6 @@ def get_param_dicts(args):
     Data_Loader_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
 
     return model_dict, optimizer_dict, trainer_dict, data_loader_dict
-
-def get_param_files(args, files_path='./params/'):
-    if not files_path.endswith('/'):
-        files_path += '/'
-    model_files, optimizer_files, trainer_files, data_loader_files = scan_param_files(files_path)
-
-    # raise error if did not find any param dict
-    if len(model_files)==0:
-        raise Exception('No available model param dict in %s'%str(files_path))
-    if len(optimizer_files)==0:
-        raise Exception('No available model param dict in %s'%str(files_path))
-    if len(trainer_files)==0:
-        raise Exception('No available model param dict in %s'%str(files_path))
-    if len(data_loader_files)==0:
-        raise Exception('No available model param dict in %s'%str(files_path)) 
-
-    model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
-        match_prefix='dict_model_', match_suffix='.py', file_type='model')
-    #print(model_file)
-    #input()
-
-    optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
-        match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
-
-    trainer_file = select_file(args.trainer, trainer_files, default_file='dict_trainer.py', 
-        match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
-
-    data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
-        match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
-
-    return model_file, optimizer_file, trainer_file, data_loader_file
-
 
 def scan_models(name, path):
     if not os.path.exists(path):
@@ -195,7 +195,6 @@ if __name__=="__main__":
         warnings.warn('Task is not given from args. Using default task: train.')
     else:
         task = args.task
-    
 
     param_dicts = os.listdir('./params/')
     
