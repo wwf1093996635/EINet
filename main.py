@@ -3,6 +3,8 @@
 # python main.py --task copy --path ./Instances/TP-1/  //move necessary files for training and analysis to path.
 
 
+# Every component, such as model, optimizer, trainer, data_loader, is initialized according to a dict in a .py file.
+
 import os
 import sys
 import re
@@ -28,7 +30,7 @@ parser.add_argument('-tr', '--trainer', dest='trainer', type=str, default=None, 
 parser.add_argument('-m', '--model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
 parser.add_argument('-dl', '--data_loader', dest='data_loader', type=str, default=None, help='data loader type.')
 parser.add_argument('-pp', '--params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
-
+parser.add_argument('-cf', '--config', dest='config', type=str, default=None, help='name of config file')
 args = parser.parse_args()
 
 def scan_param_files(path, raise_not_found_error=True):
@@ -51,8 +53,6 @@ def scan_param_files(path, raise_not_found_error=True):
             raise Exception('No available data_loader param dict in %s'%str(path)) 
     '''
     
-
-
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
     files_path = os.listdir(path)
@@ -102,8 +102,8 @@ def get_param_files(args, files_path):
     data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
         match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
 
-    config_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
-        match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
+    config_file = select_file(args.config, data_loader_files, default_file=None, 
+        match_prefix='config_', match_suffix='.py', file_type='data loader')
 
     return model_file, optimizer_file, trainer_file, data_loader_file
 
