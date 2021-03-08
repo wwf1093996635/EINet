@@ -72,7 +72,9 @@ if dict_['separate_ei']:
 else:
     dict_['name'] = 'RSLP(no_EI)'
 
-def interact(model_dict=None, optimizer_dict=None, trainer_dict=None, data_loader_dict=None, **kw):
+def interact(env_info):
+    data_loader_dict = env_info['data_loader_dict']
+
     if data_loader_dict is not None:
         data_loader_type = data_loader_dict['type']
         if data_loader_type in ['cifar10']:
@@ -88,8 +90,8 @@ def interact(model_dict=None, optimizer_dict=None, trainer_dict=None, data_loade
         else:
             raise Exception('Unknown data loader type: %s'%data_loader_type)
 
-    if kw.get('device') is not None:
-        dict_['device'] = dict_['N']['device'] = kw['device']
+    if env_info.get('device') is not None:
+        dict_['device'] = dict_['N']['device'] = env_info['device']
 
 
 

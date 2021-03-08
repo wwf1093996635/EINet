@@ -13,5 +13,5 @@ dict_ ={
     }
 }
 
-def interact(model_dict=None, optimizer_dict=None, trainer_dict=None, data_loader_dict=None, **kw):
+def interact(env_info):
     return

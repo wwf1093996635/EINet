@@ -31,33 +31,6 @@ parser.add_argument('-pp', '--params_path', dest='params_path', type=str, defaul
 
 args = parser.parse_args()
 
-def train(args=None, dicts_path=None, **kw):
-    if args is None:
-        args = kw.get('args')
-    
-    if dicts_path is None:
-        if args.dicts_path is not None:
-            dicts_path = args.dicts_path
-        else:
-            +dicts_path = './params/'
-        sys.path.append(dicts_path)
-
-    model_dict, optimizer_dict, trainer_dict, data_loader_dict = get_param_dicts(args)
-
-    trainer = build_trainer(trainer_dict)
-    data_loader = build_data_loader(data_loader_dict)
-    # model can be RSLP, RMLP, RCNN ...
-    model = build_model(model_dict)
-    # optimizer can be BP, TP or CHL optimizer.
-    optimizer = build_optimizer(optimizer_dict)
-    optimizer.bind_model(model)
-    optimizer.bind_trainer(trainer)
-    trainer.bind_model(model)
-    trainer.bind_optimizer(optimizer)
-    trainer.bind_data_loader(data_loader)
-    trainer.train()    # the model needs some data from data_loader to get response properties.
-    model.analyze(data_loader=data_loader)
-
 def scan_param_files(path, raise_not_found_error=True):
     if not path.endswith('/'):
         path.append('/')
@@ -115,11 +88,6 @@ def get_param_files(args, files_path='./params/'):
 
     model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
         match_prefix='dict_model_', match_suffix='.py', file_type='model')
-<<<<<<< HEAD
-=======
-    #print('model_file: %s'%model_file)
-    #input()
->>>>>>> a85c551203938acd59531b9a495feaee2471b37e
 
     optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
         match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
@@ -128,6 +96,9 @@ def get_param_files(args, files_path='./params/'):
         match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
 
     data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
+        match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
+
+    config_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
         match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
 
     return model_file, optimizer_file, trainer_file, data_loader_file
@@ -158,12 +129,39 @@ def get_param_dicts(args):
         'device': device
     }
 
-    Model_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
-    Optimizer_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
-    Trainer_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
-    Data_Loader_Param.interact(model_dict, optimizer_dict, trainer_dict, data_loader_dict, device=device)
+    Model_Param.interact(env_info)
+    Optimizer_Param.interact(env_info)
+    Trainer_Param.interact(env_info)
+    Data_Loader_Param.interact(env_info)
 
     return model_dict, optimizer_dict, trainer_dict, data_loader_dict
+
+def train(args=None, dicts_path=None, **kw):
+    if args is None:
+        args = kw.get('args')
+    
+    if dicts_path is None:
+        if args.dicts_path is not None:
+            dicts_path = args.dicts_path
+        else:
+            +dicts_path = './params/'
+        sys.path.append(dicts_path)
+
+    model_dict, optimizer_dict, trainer_dict, data_loader_dict = get_param_dicts(args)
+
+    trainer = build_trainer(trainer_dict)
+    data_loader = build_data_loader(data_loader_dict)
+    # model can be RSLP, RMLP, RCNN ...
+    model = build_model(model_dict)
+    # optimizer can be BP, TP or CHL optimizer.
+    optimizer = build_optimizer(optimizer_dict)
+    optimizer.bind_model(model)
+    optimizer.bind_trainer(trainer)
+    trainer.bind_model(model)
+    trainer.bind_optimizer(optimizer)
+    trainer.bind_data_loader(data_loader)
+    trainer.train()    # the model needs some data from data_loader to get response properties.
+    model.analyze(data_loader=data_loader)
 
 
 if __name__=="__main__":
@@ -194,15 +192,7 @@ if __name__=="__main__":
             'utils_anal.py',
             'config_sys.py',
         ]
-
-        '''
-        for file in file_list:
-            #shutil.copy2(file, path + file)
-            if os.path.exists(path+file):
-                os.system('rm -r %s'%(path+file))
-            os.system('cp -r %s %s'%(file, path+file))
-        '''
-        copy_files(file_list, path, )
+        copy_files(file_list, path)
     elif task in ['train']:
         train(args)
     else:

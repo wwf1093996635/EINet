@@ -34,12 +34,13 @@ dict_ ={
     'get_target_method': 'gradient',
 }
 
-def interact():
+def interact(env_info):
     return
 
-def interact(model_dict=None, optimizer_dict=None, trainer_dict=None, data_loader_dict=None, **kw):
-    if kw.get('device') is not None:
-        dict_['device'] = kw['device']
+def interact(env_info):
+    model_dict = env_info['model_dict']
+    if env_info.get('device') is not None:
+        dict_['device'] = env_info['device']
     if model_dict is not None:
         dict_['loss_func'] = model_dict['loss']['main_loss_func']
     return

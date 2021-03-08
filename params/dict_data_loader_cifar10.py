@@ -14,7 +14,8 @@ if dict_.get('type') is None:
 if dict_.get('data_dir') is None:
     dict_['data_dir'] = dict_['data_path']
 
-def interact(model_dict=None, optimizer_dict=None, trainer_dict=None, data_loader_dict=None, **kw):
+def interact(env_info):
+    trainer_dict = env_info['trainer_dict']
     if trainer_dict is not None:
         #print(trainer_dict.keys())
         if trainer_dict.get('batch_size') is not None:
