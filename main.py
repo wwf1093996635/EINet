@@ -1,17 +1,14 @@
+# run this script to do different tasks
+
+# python main.py --task copy --path ./Instances/TP-1/  //move necessary files for training and analysis to path.
+
 import os
 import sys
 import re
 import argparse
 import warnings
 import importlib
-import config_sys
 
-# useful commands
-# python main.py --task copy --path ./Instances/TP-1/  //move necessary files for training and analysis to path.
-
-
-
-import os
 import shutil
 import argparse
 import warnings
@@ -19,6 +16,7 @@ import warnings
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
 from utils import scan_files, copy_files
 
+import config_sys
 from Trainers import Trainer
 import Models
 import Optimizers
@@ -204,9 +202,7 @@ if __name__=="__main__":
             os.system('cp -r %s %s'%(file, path+file))
         '''
         copy_files(file_list, path, )
-
     elif task in ['train']:
         train(args)
     else:
         raise Exception('Invalid task: %s'%str(task))
-
