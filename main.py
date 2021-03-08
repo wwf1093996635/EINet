@@ -34,20 +34,24 @@ args = parser.parse_args()
 def scan_param_files(path, raise_not_found_error=True):
     if not path.endswith('/'):
         path.append('/')
-    model_files = scan_files(path, r'dict_model(.*)\.py')
-    optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py')
-    trainer_files = scan_files(path, r'dict_trainer(.*)\.py')
-    data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py')
+    model_files = scan_files(path, r'dict_model(.*)\.py', raise_not_found_error=True)
+    optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py', raise_not_found_error=True)
+    trainer_files = scan_files(path, r'dict_trainer(.*)\.py', raise_not_found_error=True)
+    data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py', raise_not_found_error=True)
 
+    '''
     if raise_not_found_error: # raise error if did not find any param dict
         if len(model_files)==0:
             raise Exception('No available model param dict in %s'%str(path))
         if len(optimizer_files)==0:
-            raise Exception('No available model param dict in %s'%str(path))
+            raise Exception('No available optimizer param dict in %s'%str(path))
         if len(trainer_files)==0:
-            raise Exception('No available model param dict in %s'%str(path))
+            raise Exception('No available trainer param dict in %s'%str(path))
         if len(data_loader_files)==0:
-            raise Exception('No available model param dict in %s'%str(path)) 
+            raise Exception('No available data_loader param dict in %s'%str(path)) 
+    '''
+    
+
 
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
