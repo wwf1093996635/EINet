@@ -92,8 +92,5 @@ def interact(env_info):
 
     if env_info.get('device') is not None:
         dict_['device'] = dict_['N']['device'] = env_info['device']
-
-
-
     
 

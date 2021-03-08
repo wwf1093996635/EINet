@@ -81,7 +81,7 @@ def scan_param_files(path, raise_not_found_error=True):
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
 
-def get_param_files(args, files_path='./params/'):
+def get_param_files(args, files_path):
     if not files_path.endswith('/'):
         files_path += '/'
     model_files, optimizer_files, trainer_files, data_loader_files = scan_param_files(files_path)
@@ -144,7 +144,7 @@ def train(args=None, dicts_path=None, **kw):
         if args.dicts_path is not None:
             dicts_path = args.dicts_path
         else:
-            +dicts_path = './params/'
+            dicts_path = './params/'
         sys.path.append(dicts_path)
 
     model_dict, optimizer_dict, trainer_dict, data_loader_dict = get_param_dicts(args)
@@ -176,6 +176,8 @@ if __name__=="__main__":
     if task in ['copy', 'copy_files', 'copy_file']: # copy necessary files for training and 
         path = args.path
         ensure_path(args.path)
+        if args.param_path is None:
+            param_path = './params/'
         file_list = [
             #'cmd.py',
             'Models',
@@ -193,6 +195,9 @@ if __name__=="__main__":
             'config_sys.py',
         ]
         copy_files(file_list, path)
+        model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
+        copy_files([model_file, optimizer_file, trainer_file, data_loader_file], path, subpath='params/')
+
     elif task in ['train']:
         train(args)
     else:
