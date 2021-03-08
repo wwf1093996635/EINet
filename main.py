@@ -115,7 +115,7 @@ def get_param_files(args, files_path='./params/'):
 
     model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
         match_prefix='dict_model_', match_suffix='.py', file_type='model')
-    #print(model_file)
+    #print('model_file: %s'%model_file)
     #input()
 
     optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
