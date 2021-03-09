@@ -13,10 +13,9 @@ import warnings
 import importlib
 import shutil
 
+import config_sys
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
 from utils import scan_files, copy_files
-
-import config_sys
 from Trainers import Trainer
 import Models
 import Optimizers
@@ -29,7 +28,7 @@ parser.add_argument('-o', '--optimizer', dest='optimizer', type=str, default=Non
 parser.add_argument('-tr', '--trainer', dest='trainer', type=str, default=None, help='trainer type.')
 parser.add_argument('-m', '--model', dest='model', type=str, default=None, help='model type. RSLP, RMLP, RSLCNN, RMLCNN, etc.')
 parser.add_argument('-dl', '--data_loader', dest='data_loader', type=str, default=None, help='data loader type.')
-parser.add_argument('-pp', '--params_path', dest='params_path', type=str, default=None, help='path to folder that stores param dict files.')
+parser.add_argument('-pp', '--param_path', dest='param_path', type=str, default=None, help='path to folder that stores param dict files.')
 parser.add_argument('-cf', '--config', dest='config', type=str, default=None, help='name of config file')
 args = parser.parse_args()
 
@@ -53,14 +52,13 @@ def scan_param_files(path, raise_not_found_error=True):
         if len(data_loader_files)==0:
             raise Exception('No available data_loader param dict in %s'%str(path)) 
     '''
-    
     return {
         'model_files': model_files,
         'optimizer_files': optimizer_files,
         'trainer_files': trainer_files,
         'data_loader_files': data_loader_files,
+        'config_files': config_files
     }
-
     '''
     files_path = os.listdir(path)
     pattern_model = re.compile(r'dict_model(.*)\.py')
@@ -92,61 +90,76 @@ def scan_param_files(path, raise_not_found_error=True):
     return model_files, optimizer_files, trainer_files, data_loader_files
     '''
 
-def get_param_files(args, files_path, verbose=True):
-    if not files_path.endswith('/'):
-        files_path += '/'
+def get_param_files(args, verbose=True):
+    path = args.param_path
+    if path is None:
+        path = './params/'
+    if not path.endswith('/'):
+        path += '/'
+    files = scan_param_files(path)
+    
+    model_files = files['model_files']
+    optimizer_files = files['optimizer_files']
+    trainer_files = files['trainer_files']
+    data_loader_files = files['data_loader_files']
+    config_files = files['config_files']
+
+    #print(model_files)
+    #print(optimizer_files)
+    #print(trainer_files)
+    #print(data_loader_files)
 
     if args.config is not None: # get param files according to a config file.
-    
-
+        #print('aaa')
         config_file = select_file(args.config, config_files, default_file=None, 
             match_prefix='config_', match_suffix='.py', file_type='config')
-
-    
-    model_files, optimizer_files, trainer_files, data_loader_files = scan_param_files(files_path)
-    
-    if len(model_files)==0:
-        raise Exception('No available model param file.')
-    elif len(model_files)==1:
-        model_file = model_files[0]
-        if verbose:
-            print('Using the only available model file: %s'%model_file)          
     else:
-        model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
-            match_prefix='dict_model_', match_suffix='.py', file_type='model')
-    
-    if len(optimizer_files)==0:
-        raise Exception('No available optimizer param file.')
-    elif len(optimizer_files)==1:
-        optimizer_file = optimizer_files[0]
-        if verbose:
-            print('Using the only available optimizer file: %s'%optimizer_file)        
-    else:
-        optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
-            match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
+        #print('bbb')
+        if len(model_files)==0:
+            raise Exception('No available model param file.')
+        elif len(model_files)==1:
+            model_file = model_files[0]
+            if verbose:
+                print('Using the only available model file: %s'%model_file)          
+        else:
+            model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
+                match_prefix='dict_model_', match_suffix='.py', file_type='model')
+        
+        if len(optimizer_files)==0:
+            raise Exception('No available optimizer param file.')
+        elif len(optimizer_files)==1:
+            optimizer_file = optimizer_files[0]
+            if verbose:
+                print('Using the only available optimizer file: %s'%optimizer_file)        
+        else:
+            optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
+                match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
 
-    if len(trainer_files)==0:
-        raise Exception('No available trainer param file.')
-    elif len(trainer_files)==1:
-        trainer_file = trainer_files[0]
-        if verbose:
-            print('Using the only available trainer file: %s'%trainer_file)
-    else:
-        trainer_file = select_file(args.trainer, trainer_files, default_file='dict_trainer.py', 
-            match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
+        if len(trainer_files)==0:
+            raise Exception('No available trainer param file.')
+        elif len(trainer_files)==1:
+            trainer_file = trainer_files[0]
+            if verbose:
+                print('Using the only available trainer file: %s'%trainer_file)
+        else:
+            trainer_file = select_file(args.trainer, trainer_files, default_file='dict_trainer.py', 
+                match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
 
-    if len(data_loader_files)==0:
-        raise Exception('No available data_loader param file.')
-    elif len(data_loader_files)==1:
-        data_loader_file = data_loader_files[0]
-        if verbose:
-            print('Using the only available data_loader file: %s'%data_loader_file)
-    else:
-        data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
-            match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
+        if len(data_loader_files)==0:
+            raise Exception('No available data_loader param file.')
+        elif len(data_loader_files)==1:
+            data_loader_file = data_loader_files[0]
+            if verbose:
+                print('Using the only available data_loader file: %s'%data_loader_file)
+        else:
+            data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
+                match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
 
-
-    return model_file, optimizer_file, trainer_file, data_loader_file
+        #print(model_file)
+        #print(optimizer_file)
+        #print(trainer_file)
+        #print(data_loader_file)
+        return model_file, optimizer_file, trainer_file, data_loader_file
 
 def get_param_dicts(args):
     model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
@@ -180,16 +193,16 @@ def get_param_dicts(args):
 
     return model_dict, optimizer_dict, trainer_dict, data_loader_dict
 
-def train(args=None, dicts_path=None, **kw):
+def train(args=None, param_path=None, **kw):
     if args is None:
         args = kw.get('args')
     
-    if dicts_path is None:
-        if args.dicts_path is not None:
-            dicts_path = args.dicts_path
+    if param_path is None:
+        if args.param_path is not None:
+            param_path = args.param_path
         else:
-            dicts_path = './params/'
-        sys.path.append(dicts_path)
+            param_path = './params/'
+        #sys.path.append(param_path)
 
     model_dict, optimizer_dict, trainer_dict, data_loader_dict = get_param_dicts(args)
 
@@ -211,12 +224,10 @@ def copy_project_files(args):
     path = args.path
     ensure_path(args.path)
     if args.param_path is None:
-        path = './params/'
+        param_path = './params/'
     file_list = [
         #'cmd.py',
         'Models',
-        'Agent.py',
-        'Arenas.py',
         'Trainers.py',
         'Optimizers',
         'Analyzer.py',
@@ -229,10 +240,10 @@ def copy_project_files(args):
         'config_sys.py',
     ]
     copy_files(file_list, path)
-    model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
-    copy_files([model_file, optimizer_file, trainer_file, data_loader_file], path, subpath='params/')
-
-if __name__=="__main__":
+    param_files = list(get_param_files(args))
+    #param_files = list(map(lambda file:param_path + file, param_files))
+    copy_files(param_files, path, subpath = param_path.lstrip('./'), file_path = param_path)
+if __name__=='__main__':
     if args.task is None:
         task = 'train'
         warnings.warn('Task is not given from args. Using default task: train.')
@@ -245,4 +256,3 @@ if __name__=="__main__":
         train(args)
     else:
         raise Exception('Invalid task: %s'%str(task))
-
