@@ -40,6 +40,7 @@ def scan_param_files(path, raise_not_found_error=True):
     optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py', raise_not_found_error=True)
     trainer_files = scan_files(path, r'dict_trainer(.*)\.py', raise_not_found_error=True)
     data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py', raise_not_found_error=True)
+    config_files = scan_files(path, r'config(.*)\.py', raise_not_found_error=True)
 
     '''
     if raise_not_found_error: # raise error if did not find any param dict
@@ -53,7 +54,13 @@ def scan_param_files(path, raise_not_found_error=True):
             raise Exception('No available data_loader param dict in %s'%str(path)) 
     '''
     
-    return model_files, optimizer_files, trainer_files, data_loader_files
+    return {
+        'model_files': model_files,
+        'optimizer_files': optimizer_files,
+        'trainer_files': trainer_files,
+        'data_loader_files': data_loader_files,
+    }
+
     '''
     files_path = os.listdir(path)
     pattern_model = re.compile(r'dict_model(.*)\.py')
@@ -88,6 +95,14 @@ def scan_param_files(path, raise_not_found_error=True):
 def get_param_files(args, files_path, verbose=True):
     if not files_path.endswith('/'):
         files_path += '/'
+
+    if args.config is not None: # get param files according to a config file.
+    
+
+        config_file = select_file(args.config, config_files, default_file=None, 
+            match_prefix='config_', match_suffix='.py', file_type='config')
+
+    
     model_files, optimizer_files, trainer_files, data_loader_files = scan_param_files(files_path)
     
     if len(model_files)==0:
@@ -130,8 +145,6 @@ def get_param_files(args, files_path, verbose=True):
         data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
             match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
 
-    config_file = select_file(args.config, data_loader_files, default_file=None, 
-        match_prefix='config_', match_suffix='.py', file_type='data loader')
 
     return model_file, optimizer_file, trainer_file, data_loader_file
 
@@ -191,7 +204,7 @@ def train(args=None, dicts_path=None, **kw):
     trainer.bind_model(model)
     trainer.bind_optimizer(optimizer)
     trainer.bind_data_loader(data_loader)
-    trainer.train()    # the model needs some data from data_loader to get response properties.
+    trainer.train() # the model needs some data from data_loader to get response properties.
     model.analyze(data_loader=data_loader)
 
 def copy_project_files(args):
