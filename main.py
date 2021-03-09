@@ -222,6 +222,8 @@ def train(args=None, param_path=None, **kw):
 
 def copy_project_files(args):
     path = args.path
+    if path is None:
+        raise Exception('copy_project_files: args.path must not be none. please give path to copy files to')
     ensure_path(args.path)
     if args.param_path is None:
         param_path = './params/'
@@ -234,8 +236,7 @@ def copy_project_files(args):
         'config.py',
         'main.py',
         'config.py',
-        'utils_agent.py',
-        'utils_arena.py',
+        'utils.py',
         'utils_anal.py',
         'config_sys.py',
     ]
@@ -243,6 +244,7 @@ def copy_project_files(args):
     param_files = list(get_param_files(args))
     #param_files = list(map(lambda file:param_path + file, param_files))
     copy_files(param_files, path, subpath = param_path.lstrip('./'), file_path = param_path)
+
 if __name__=='__main__':
     if args.task is None:
         task = 'train'
