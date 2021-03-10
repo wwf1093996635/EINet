@@ -109,12 +109,43 @@ def get_param_files(args, verbose=True):
     #print(trainer_files)
     #print(data_loader_files)
 
-    if args.config is not None: # get param files according to a config file.
-        #print('aaa')
+    model_str, optimizer_str, trainer_str, data_loader_str = args.model, args.optimizer, args.trainer, args.data_loader
+    
+    files_str = [model_str, optimizer_str, trainer_str, data_loader_str]
+    
+    use_config_file = False
+    if len(config_files)==1:
+        use_config_file = True
+    if args.config is not None:
+        use_config_file = True
+
+    if use_config_file: # get param files according to a config file.
+        if verbose:
+            print('Setting params according to config file.')
         config_file = select_file(args.config, config_files, default_file=None, 
             match_prefix='config_', match_suffix='.py', file_type='config')
+        Config_Param = importlib.import_module(remove_suffix(config_file))
+        try:
+            model_file = Config_Param.model_file
+            optimizer_file = Config_Param.optimizer_file
+            trainer_file = Config_Param.trainer_file
+            data_loader_file = Config_Param.data_loader_file
+        except Exception:
+            raise Exception('Cannot read file name from %s'%(path + config_file))
+    
+        for file in [model_file, optimizer_file, trainer_file, data_loader_file]:
+            if not os.path.exists(path + file):
+                raise Exception('FileNotFound: %s'%(path + file))
+        return {
+            'model_file': model_file,
+            'optimizer_file': optimizer_file,
+            'trainer_file': trainer_file,
+            'data_loader_file': data_loader_file,
+            'config_file': config_file,
+        }
     else:
-        #print('bbb')
+        if verbose:
+            print('Setting params according to model, optimzier, trainer, and data_loader param files.')
         if len(model_files)==0:
             raise Exception('No available model param file.')
         elif len(model_files)==1:
@@ -122,7 +153,7 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available model file: %s'%model_file)          
         else:
-            model_file = select_file(args.model, model_files, default_file='dict_model_RSLP.py', 
+            model_file = select_file(model_str, model_files, default_file='dict_model_RSLP.py', 
                 match_prefix='dict_model_', match_suffix='.py', file_type='model')
         
         if len(optimizer_files)==0:
@@ -132,7 +163,7 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available optimizer file: %s'%optimizer_file)        
         else:
-            optimizer_file = select_file(args.optimizer, optimizer_files, default_file='dict_optimizer_BP.py', 
+            optimizer_file = select_file(optimizer_str, optimizer_files, default_file='dict_optimizer_BP.py', 
                 match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
 
         if len(trainer_files)==0:
@@ -142,7 +173,7 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available trainer file: %s'%trainer_file)
         else:
-            trainer_file = select_file(args.trainer, trainer_files, default_file='dict_trainer.py', 
+            trainer_file = select_file(trainer_str, trainer_files, default_file='dict_trainer.py', 
                 match_prefix='dict_trainer_', match_suffix='.py', file_type='trainer')
 
         if len(data_loader_files)==0:
@@ -152,15 +183,20 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available data_loader file: %s'%data_loader_file)
         else:
-            data_loader_file = select_file(args.data_loader, data_loader_files, default_file='dict_data_loader_cifar10.py', 
+            data_loader_file = select_file(data_loader_str, data_loader_files, default_file='dict_data_loader_cifar10.py', 
                 match_prefix='dict_data_loader_', match_suffix='.py', file_type='data loader')
-
+        
         #print(model_file)
         #print(optimizer_file)
         #print(trainer_file)
         #print(data_loader_file)
-        return model_file, optimizer_file, trainer_file, data_loader_file
-
+        
+        return {
+            'model_file': model_file,
+            'optimizer_file': optimizer_file,
+            'trainer_file': trainer_file,
+            'data_loader_file': data_loader_file
+        }
 def get_param_dicts(args):
     model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
     Model_Param = importlib.import_module(remove_suffix(model_file))

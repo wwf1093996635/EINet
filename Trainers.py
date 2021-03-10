@@ -95,16 +95,10 @@ class Trainer():
             row_index = index // row_num
             col_index = index % row_num
             ax = axes[row_index, col_index]
-            
             ax.set_title
-        
         plt.suptitle('%s Test Performance'%self.model.dict['name'])
-
-
         ensure_path(save_path)
-
         plt.savefig(save_path + save_name)
-
         # plot train_performs
     
     def save(self, save_path, save_name=None):
