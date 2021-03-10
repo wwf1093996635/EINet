@@ -240,10 +240,10 @@ class RSLP(nn.Module):
                 print(prefix, end=' ')
             for key in self.perform_list.keys():
                 if key in ['acc']:
-                    perform[key] = self.perform_list[key]/self.sample_count
+                    perform[key] = self.perform_list[key] / self.sample_count
                     print('%s:%s'%(key, perform[key]), end=' ')
                 else:
-                    perform[key] = self.perform_list[key]/self.batch_count
+                    perform[key] = self.perform_list[key] / self.batch_count
                     print('%s:%.3e'%(key, perform[key]), end=' ')
             print('%s'%end, end='')
         return perform

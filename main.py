@@ -15,7 +15,7 @@ import shutil
 
 import config_sys
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
-from utils import scan_files, copy_files
+from utils import scan_files, copy_files, path_to_module
 from Trainers import Trainer
 import Models
 import Optimizers
@@ -32,14 +32,14 @@ parser.add_argument('-pp', '--param_path', dest='param_path', type=str, default=
 parser.add_argument('-cf', '--config', dest='config', type=str, default=None, help='name of config file')
 args = parser.parse_args()
 
-def scan_param_files(path, raise_not_found_error=True):
+def scan_param_files(path):
     if not path.endswith('/'):
         path.append('/')
-    model_files = scan_files(path, r'dict_model(.*)\.py', raise_not_found_error=True)
-    optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py', raise_not_found_error=True)
-    trainer_files = scan_files(path, r'dict_trainer(.*)\.py', raise_not_found_error=True)
-    data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py', raise_not_found_error=True)
-    config_files = scan_files(path, r'config(.*)\.py', raise_not_found_error=True)
+    model_files = scan_files(path, r'dict_model(.*)\.py', raise_not_found_error=False)
+    optimizer_files = scan_files(path, r'dict_optimizer(.*)\.py', raise_not_found_error=False)
+    trainer_files = scan_files(path, r'dict_trainer(.*)\.py', raise_not_found_error=False)
+    data_loader_files = scan_files(path, r'dict_data_loader(.*)\.py', raise_not_found_error=False)
+    config_files = scan_files(path, r'config(.*)\.py', raise_not_found_error=False)
 
     '''
     if raise_not_found_error: # raise error if did not find any param dict
@@ -112,10 +112,16 @@ def get_param_files(args, verbose=True):
     model_str, optimizer_str, trainer_str, data_loader_str = args.model, args.optimizer, args.trainer, args.data_loader
     
     files_str = [model_str, optimizer_str, trainer_str, data_loader_str]
+    files_component = [model_files, optimizer_files, trainer_files, data_loader_files]
     
     use_config_file = False
     if len(config_files)==1:
-        use_config_file = True
+        sig = True
+        for files in files_component:
+            if len(files)>1 or len(files)==0:
+                sig = False
+        if sig:
+            use_config_file = True
     if args.config is not None:
         use_config_file = True
 
@@ -124,7 +130,8 @@ def get_param_files(args, verbose=True):
             print('Setting params according to config file.')
         config_file = select_file(args.config, config_files, default_file=None, 
             match_prefix='config_', match_suffix='.py', file_type='config')
-        Config_Param = importlib.import_module(remove_suffix(config_file))
+        print(config_file)
+        Config_Param = importlib.import_module(path_to_module(path) + remove_suffix(config_file))
         try:
             model_file = Config_Param.model_file
             optimizer_file = Config_Param.optimizer_file
@@ -142,6 +149,7 @@ def get_param_files(args, verbose=True):
             'trainer_file': trainer_file,
             'data_loader_file': data_loader_file,
             'config_file': config_file,
+            'files_path': path,
         }
     else:
         if verbose:
@@ -153,7 +161,7 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available model file: %s'%model_file)          
         else:
-            model_file = select_file(model_str, model_files, default_file='dict_model_RSLP.py', 
+            model_file = select_file(model_str, model_files, default_file='dict_model_rslp.py', 
                 match_prefix='dict_model_', match_suffix='.py', file_type='model')
         
         if len(optimizer_files)==0:
@@ -163,7 +171,7 @@ def get_param_files(args, verbose=True):
             if verbose:
                 print('Using the only available optimizer file: %s'%optimizer_file)        
         else:
-            optimizer_file = select_file(optimizer_str, optimizer_files, default_file='dict_optimizer_BP.py', 
+            optimizer_file = select_file(optimizer_str, optimizer_files, default_file='dict_optimizer_bp.py', 
                 match_prefix='dict_optimizer_', match_suffix='.py', file_type='optimizer')
 
         if len(trainer_files)==0:
@@ -195,20 +203,28 @@ def get_param_files(args, verbose=True):
             'model_file': model_file,
             'optimizer_file': optimizer_file,
             'trainer_file': trainer_file,
-            'data_loader_file': data_loader_file
+            'data_loader_file': data_loader_file,
+            'files_path': path,
         }
 def get_param_dicts(args):
-    model_file, optimizer_file, trainer_file, data_loader_file = get_param_files(args)
-    Model_Param = importlib.import_module(remove_suffix(model_file))
+    files_component = get_param_files(args)
+    model_file = files_component['model_file']
+    optimizer_file = files_component['optimizer_file']
+    trainer_file = files_component['trainer_file']
+    data_loader_file = files_component['data_loader_file']
+    files_path = files_component['files_path']
+    
+    #print(path_to_module(files_path) + remove_suffix(model_file))
+    Model_Param = importlib.import_module(path_to_module(files_path) + remove_suffix(model_file))
     model_dict = Model_Param.dict_
 
-    Optimizer_Param = importlib.import_module(remove_suffix(optimizer_file))
+    Optimizer_Param = importlib.import_module(path_to_module(files_path) + remove_suffix(optimizer_file))
     optimizer_dict = Optimizer_Param.dict_
 
-    Trainer_Param = importlib.import_module(remove_suffix(trainer_file))
+    Trainer_Param = importlib.import_module(path_to_module(files_path) + remove_suffix(trainer_file))
     trainer_dict = Trainer_Param.dict_
 
-    Data_Loader_Param = importlib.import_module(remove_suffix(data_loader_file))
+    Data_Loader_Param = importlib.import_module(path_to_module(files_path) + remove_suffix(data_loader_file))
     data_loader_dict = Data_Loader_Param.dict_
 
     device = get_device(args)
@@ -266,20 +282,27 @@ def copy_project_files(args):
     file_list = [
         #'cmd.py',
         'Models',
-        'Trainers.py',
         'Optimizers',
+        'Trainers.py',
+        'DataLoaders.py',
         'Analyzer.py',
         'config.py',
         'main.py',
         'config.py',
         'utils.py',
         'utils_anal.py',
+        'utils_model.py',
         'config_sys.py',
+        'params/__init__.py'
     ]
     copy_files(file_list, path)
-    param_files = list(get_param_files(args))
+    param_files = get_param_files(args)
     #param_files = list(map(lambda file:param_path + file, param_files))
-    copy_files(param_files, path, subpath = param_path.lstrip('./'), file_path = param_path)
+    model_file = param_files['model_file']
+    optimizer_file = param_files['optimizer_file']
+    trainer_file = param_files['optimizer_file']
+    data_loader_file = param_files['data_loader_file']
+    copy_files([model_file, optimizer_file, trainer_file, data_loader_file], path, subpath = param_path.lstrip('./'), file_path = param_path)
 
 if __name__=='__main__':
     if args.task is None:

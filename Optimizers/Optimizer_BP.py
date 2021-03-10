@@ -37,7 +37,7 @@ class Optimizer_BP(Optimizer):
         self.optimizer = utils_model.build_optimizer(self.dict['optimizer_dict'], model=self.model, load=load)
     def train(self, x, y):
         self.optimizer.zero_grad()
-        perform = self.model.get_perform(x, y)
+        perform = self.model.cal_perform(x, y)
         if isinstance(perform, dict):
             loss = perform['loss_total']
         else:
@@ -78,7 +78,7 @@ class Optimizer_BP(Optimizer):
     def update_lr_none(self, **kw):
         return
     def evaluate(self, x, y): #x_: input_data, y_:output_target.
-        self.model.get_perform(x, y)
+        self.model.cal_perform(x, y)
 
 '''
 class Optimizer_BP(Optimizer):

@@ -21,6 +21,7 @@ class Trainer():
         self.epoch_end = get_from_dict(self.dict, 'epoch_end', default=self.epoch_um, write_default=True)
         '''        
         self.epoch_now = 0
+        #print(self.dict.keys())
         self.epoch_num = self.dict['epoch_num']
         self.epoch_end = self.epoch_num - 1
 
@@ -58,7 +59,7 @@ class Trainer():
                 self.optimizer.train(inputs.to(self.model.device), labels.to(self.model.device))
                 batch_num += 1
             train_perform = self.model.get_perform(prefix='train: ', verbose=True)
-            self.test_performs[self.epoch_now] = test_perform
+            self.train_performs[self.epoch_now] = train_perform
             
             # evaluate model
             self.model.reset_perform()
