@@ -109,7 +109,7 @@ def def_trainer_param(**kw):
     epoch_num = 120
     save_model = True
     save_model_interval = 10
-    save_model_path = "./saved_models/"
+    save_model_path = "../saved_models/"
     return load_param(locals())
 
 class Options: # An Option consists of 4 major components: model, optimizer, data_loader and trainer. 

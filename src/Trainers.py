@@ -28,6 +28,7 @@ class Trainer():
         # save directory setting
         self.save_model_path = search_dict(self.dict, ['save_model_path', 'save_dir_model', 'save_path_model'], 
             default='./SavedModels/', write_default=True, write_default_key='save_model_path')
+        #print(self.save_model_path)
         ensure_path(self.save_model_path)
 
         self.save_model = get_from_dict(self.dict, 'save_model', default=True, write_default=True)
@@ -38,6 +39,8 @@ class Trainer():
             self.save_interval = get_from_dict(self.dict, 'save_model_interval', default=True, write_default=True)
 
         self.anal_path = search_dict(self.dict, ['anal_path'], default='./', write_default=True)
+        #print(self.anal_path)
+        ensure_path(self.anal_path)
 
     def train(self):
         if self.save_before_train:

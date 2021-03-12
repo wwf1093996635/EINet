@@ -13,6 +13,8 @@ import warnings
 import importlib
 import shutil
 
+sys.path.append('./src/')
+
 import config_sys
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
 from utils import scan_files, copy_files, path_to_module
@@ -112,12 +114,12 @@ def get_param_files(args, verbose=True):
     model_str, optimizer_str, trainer_str, data_loader_str = args.model, args.optimizer, args.trainer, args.data_loader
     
     files_str = [model_str, optimizer_str, trainer_str, data_loader_str]
-    files_component = [model_files, optimizer_files, trainer_files, data_loader_files]
+    component_files = [model_files, optimizer_files, trainer_files, data_loader_files]
     
     use_config_file = False
     if len(config_files)==1:
         sig = True
-        for files in files_component:
+        for files in component_files:
             if len(files)>1 or len(files)==0:
                 sig = False
         if sig:
@@ -142,7 +144,7 @@ def get_param_files(args, verbose=True):
     
         for file in [model_file, optimizer_file, trainer_file, data_loader_file]:
             if not os.path.exists(path + file):
-                raise Exception('FileNotFound: %s'%(path + file))
+                raise Exception('FileNotFoundError: %s'%(path + file))
         return {
             'model_file': model_file,
             'optimizer_file': optimizer_file,
@@ -207,12 +209,12 @@ def get_param_files(args, verbose=True):
             'files_path': path,
         }
 def get_param_dicts(args):
-    files_component = get_param_files(args)
-    model_file = files_component['model_file']
-    optimizer_file = files_component['optimizer_file']
-    trainer_file = files_component['trainer_file']
-    data_loader_file = files_component['data_loader_file']
-    files_path = files_component['files_path']
+    component_files = get_param_files(args)
+    model_file = component_files['model_file']
+    optimizer_file = component_files['optimizer_file']
+    trainer_file = component_files['trainer_file']
+    data_loader_file = component_files['data_loader_file']
+    files_path = component_files['files_path']
     
     #print(path_to_module(files_path) + remove_suffix(model_file))
     Model_Param = importlib.import_module(path_to_module(files_path) + remove_suffix(model_file))
@@ -279,30 +281,38 @@ def copy_project_files(args):
     ensure_path(args.path)
     if args.param_path is None:
         param_path = './params/'
+    print(path)
+    if not path.endswith('/'):
+        path += '/'
     file_list = [
         #'cmd.py',
         'Models',
         'Optimizers',
         'Trainers.py',
         'DataLoaders.py',
-        'Analyzer.py',
+        #'Analyzer.py',
         'config.py',
-        'main.py',
         'config.py',
         'utils.py',
         'utils_anal.py',
         'utils_model.py',
         'config_sys.py',
+    ]
+    copy_files(file_list, path_from='./src/', path_to=path + 'src/')
+    file_list = [
+        'main.py',
         'params/__init__.py'
     ]
-    copy_files(file_list, path)
+    copy_files(file_list, path_from='./', path_to=path)
     param_files = get_param_files(args)
     #param_files = list(map(lambda file:param_path + file, param_files))
     model_file = param_files['model_file']
     optimizer_file = param_files['optimizer_file']
-    trainer_file = param_files['optimizer_file']
+    trainer_file = param_files['trainer_file']
     data_loader_file = param_files['data_loader_file']
-    copy_files([model_file, optimizer_file, trainer_file, data_loader_file], path, subpath = param_path.lstrip('./'), file_path = param_path)
+    component_files = [model_file, optimizer_file, trainer_file, data_loader_file]
+    #print(component_files)
+    copy_files(component_files, path_from=param_path, path_to=path + param_path)
 
 if __name__=='__main__':
     if args.task is None:
