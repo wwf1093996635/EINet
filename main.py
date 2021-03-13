@@ -291,8 +291,6 @@ def copy_project_files(args):
         'Trainers.py',
         'DataLoaders.py',
         #'Analyzer.py',
-        'config.py',
-        'config.py',
         'utils.py',
         'utils_anal.py',
         'utils_model.py',
@@ -320,7 +318,6 @@ if __name__=='__main__':
         warnings.warn('Task is not given from args. Using default task: train.')
     else:
         task = args.task
-    
     if task in ['copy', 'copy_files', 'copy_file']: # copy necessary files for training and 
         copy_project_files(args)
     elif task in ['train']:
