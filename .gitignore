@@ -1,0 +1,7 @@
+
+# compiled python files
+*.pyc
+
+# saved models
+*.pth
+

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_model import init_weight
+from utils_model import init_weight, get_ei_mask, get_func, get_cons_func
 
 #training parameters.
 class Neurons_LIF(nn.Module):
@@ -19,7 +19,7 @@ class Neurons_LIF(nn.Module):
             self.f = self.dict['f']
             self.r = self.dict['r']
             self.b = self.dict['b']
-            if self.dict['init'] in 'nonzero':
+            if self.dict['init_weight'] in ['nonzero']:
                 self.init_state = self.dict['init_state']
         else:
             if self.dict['bias']:
@@ -32,8 +32,8 @@ class Neurons_LIF(nn.Module):
             self.dict['f'] = self.f
             self.dict['r'] = self.r
             
-            init_weight(self.r, self.dict['init']['r'])
-            init_weight(self.f, self.dict['init']['f'])             
+            init_weight(self.r, self.dict['init_weight']['r'])
+            init_weight(self.f, self.dict['init_weight']['f'])             
 
         # set recurrent weight
         if self.dict['noself']:
@@ -47,11 +47,11 @@ class Neurons_LIF(nn.Module):
             self.get_r_noself = lambda :self.r
         self.ei_mask = None
         
-        self.constraint_func = get_constraint_func(constraint_method)
+        self.cons_func = get_cons_func(cons_method)
         if('r' in self.dict['Dale']):
             #print('ccc')
             self.ei_mask = get_ei_mask(E_num=self.dict['E_num'], N_num=self.dict['N_num'])
-            self.get_r_ei = lambda :torch.mm(self.ei_mask, self.constraint_func(self.get_r_noself()))
+            self.get_r_ei = lambda :torch.mm(self.ei_mask, self.cons_func(self.get_r_noself()))
         else:
             #print('ddd')
             self.get_r_ei = self.get_r_noself
@@ -69,7 +69,7 @@ class Neurons_LIF(nn.Module):
         if('f' in self.dict['Dale']): #set mask for EI separation
             if(self.ei_mask is None):
                 self.ei_mask = get_ei_mask(E_num=self.dict['E_num'], N_num=self.dict['N_num'])
-            self.get_f_ei = lambda :torch.mm(self.ei_mask, self.constraint_func(self.f))
+            self.get_f_ei = lambda :torch.mm(self.ei_mask, self.cons_func(self.f))
         else:
             self.get_f_ei = lambda :self.f
         if('f' in self.dict['mask']): #set mask for connection pruning
