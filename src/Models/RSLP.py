@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import set_instance_attr, get_name, ensure_path, cal_acc_from_label
 from utils_model import init_weight
 
 from Models.Neurons_LIF import Neurons_LIF
@@ -13,25 +14,20 @@ class RSLP(nn.Module):
     def __init__(self, dict_=None, load=False, f=None):
         super(RSLP, self).__init__()
         self.dict = dict_
-        self.device = self.dict['device']
+        #self.device = self.dict['device']
+        set_instance_attr(self, self.dict, exception=['N'])
 
         self.N = Neurons_LIF(dict_ = self.dict['N'], load=load)
-
         # set up weights
-
         if load:
             self.dict=torch.load(f, map_location=self.device) 
             self.i = self.dict['i'] #input weight
             self.b_0 = self.dict['b_0']
         else:
             self.i = torch.nn.Parameter(torch.zeros((self.dict['input_num'], self.dict['N_num']), device=self.device))
-            init_weight(self.i, self.dict['init']['i'])
-            
+            init_weight(self.i, self.dict['init_weight']['i'])
             self.dict['i'] = self.i
             
-            
-            
-
             if self.dict['bias']:
                 self.b_0 = torch.nn.Parameter(torch.zeros((self.dict['N_num']), device=self.device))            
             else:
@@ -43,18 +39,26 @@ class RSLP(nn.Module):
         self.get_r = self.N.get_r
 
         input_mode = get_name(self.dict['input_mode'])
-        if input_mode=='endure' or input_mode is None: #default
-            self.prepare_input = self.prepare_input_endure
+        if input_mode in ['endure'] or input_mode is None: #default
+            self.prep_input = self.prep_input_endure
             self.get_input = self.get_input_endure
-        
-        if(self.dict['class_perform_func']=='CEL'):
+
+        self.loss_dict = self.dict['loss']
+        if self.loss_dict['main_loss_func'] in ['CEL', 'cel']:
             self.class_perform_func = torch.nn.CrossEntropyLoss()
-        elif(self.dict['class_perform_func']=='MSE'):
+        elif self.loss_dict['main_loss_func'] in ['MSE', 'mse']:
             self.class_perform_func = torch.nn.MSELoss()
-        self.loss_list = {'class':0.0, 'act':0.0, 'weight':0.0}
+        self.main_loss_coeff = self.loss_dict['main_loss_coeff']
+
+        self.perform_list = {'class':0.0, 'act':0.0, 'weight':0.0, 'acc':0.0}
+
+        self.hebb_coeff = self.loss_dict.setdefault('hebb_coeff', 0.0)
+        self.act_coeff = self.loss_dict.setdefault('act_coeff', 0.0)
+        self.weight_coeff = self.loss_dict.setdefault('weight_coeff', 0.0)
         if self.hebb_coeff != 0.0:
-            self.loss_list['hebb'] = 0.0
-        self.loss_count = 0
+            self.perform_list['hebb'] = 0.0
+        self.batch_count = 0
+        self.sample_count = 0
         self.iter_time = self.dict['iter_time']
 
         if self.dict['separate_ei']:
@@ -70,15 +74,15 @@ class RSLP(nn.Module):
         self.I_num = self.N.dict['I_num']
         self.N_num = self.N.dict['N_num']
         self.dict['noself'] = self.N.dict['noself']
-    def prepare_input_once(self, i_):
+    def prep_input_once(self, i_):
         return torch.mm(i_, self.get_i()) + self.b_0
-    def prepare_input_endure(self, i_):
-        i_ = torch.mm(i_, self.get_i()) + self.b_0 #(batch_size, neuron_num)
+    def prep_input_endure(self, i_):
+        i_ = torch.mm(i_, self.get_i()) + self.b_0 #(batch_size, N_num)
         self.cache['input'] = i_
-    def prepare_input_full(self, i_):
-        i_ = torch.mm(i_, self.get_i()) + self.b_0 #(batch_size, neuron_num)
+    def prep_input_full(self, i_):
+        i_ = torch.mm(i_, self.get_i()) + self.b_0 #(batch_size, N_num)
         i_unsqueezed = torch.unsqueeze(i_, 1)
-        return torch.cat([i_unsqueezed for _ in range(self.iter_time)], dim=1) #(batch_size, iter_time, neuron_num)        
+        return torch.cat([i_unsqueezed for _ in range(self.iter_time)], dim=1) #(batch_size, iter_time, N_num)        
     def get_input_endure(self, time=None):
         return self.cache['input']
     def forward(self, x, iter_time=None): #(batch_size, pixel_num)
@@ -86,25 +90,25 @@ class RSLP(nn.Module):
             iter_time = self.iter_time
         x = x.view(x.size(0), -1)
         self.N.reset_x(batch_size=x.size(0))
-        i_ = self.prepare_input(x) #(iter_time, batch_size, neuron_num)
+        i_ = self.prep_input(x) #(iter_time, batch_size, N_num)
         act_list = []
         output_list = []
         r = 0.0
         for time in range(iter_time):
             f, r, u = self.N.forward(torch.squeeze(self.get_input(time)) + r)
-            act_list.append(u) #(batch_size, neuron_num)
+            act_list.append(u) #(batch_size, N_num)
             output_list.append(f) #(batch_size, output_num)
         output_list = list(map(lambda x:torch.unsqueeze(x, 1), output_list))
         act_list = list(map(lambda x:torch.unsqueeze(x, 1), act_list))
         output = torch.cat(output_list, dim=1) #(batch_size, iter_time, output_num)
-        act = torch.cat(act_list, dim=1) #(batch_size, iter_time, neuron_num)
+        act = torch.cat(act_list, dim=1) #(batch_size, iter_time, N_num)
         return output, act
     def forward_init(self, batch_size):
         self.N.reset_x(batch_size=batch_size)
     def forward_once(self, i_, output_type='r'):
         r_ = i_[:, 0:self.N_num]
         i_raw = i_[:, self.N_num:]
-        i_processed = self.prepare_input_once(i_raw)
+        i_processed = self.prep_input_once(i_raw)
         f, r, u = self.N.forward(i_processed + r_)
         if output_type=='r':
             o_ = r
@@ -119,7 +123,7 @@ class RSLP(nn.Module):
             iter_time = self.iter_time
         x = x.view(x.size(0), -1)
         self.N.reset_x(batch_size=x.size(0))
-        i_ = self.prepare_input_full(x) #(batch_size, iter_time, neuron_num)
+        i_ = self.prep_input_full(x) #(batch_size, iter_time, N_num)
         r = 0.0
         for time in range(iter_time):
             i_tot = torch.squeeze(i_[:, time, :]) + r
@@ -129,14 +133,14 @@ class RSLP(nn.Module):
             res['X->E'] = res_X[:, 0:self.E_num]
             res['X->I'] = res_X[:, self.E_num:self.N_num]
         else:
-            res['X->N'] = torch.squeeze(i_[:, -1, :])#(batch_size, neuron_num)
+            res['X->N'] = torch.squeeze(i_[:, -1, :])#(batch_size, N_num)
         return res
     def iter(self, x, iter_time=None, to_cpu_interval=10):
         if(iter_time is None):
             iter_time = self.iter_time
         x = x.view(x.size(0), -1)
         self.N.reset_x(batch_size=x.size(0))
-        i_ = self.prepare_input_full(x) #(batch_size, iter_time, neuron_num)
+        i_ = self.prep_input_full(x) #(batch_size, iter_time, N_num)
         ress = {} #responses
         ress_cat = {}
         keys = self.response_keys
@@ -157,53 +161,65 @@ class RSLP(nn.Module):
             ress_cat['X->I'] = i_[:, :, self.E_num:self.N_num]
         else:
             ress_cat['X->N'] = i_
-        return ress_cat #(batch_size, iter_time, neuron_num)
-    def report_perform(self):
-        for key in self.loss_list.keys():
-            #print('%s:%s'%(key, str(self.loss_list[key]/self.loss_count)), end=' ')
-            print('%s:%.4e'%(key, self.loss_list[key]/self.loss_count), end=' ')
-        print('\n')
+        return ress_cat #(batch_size, iter_time, N_num)
+    def get_perform(self, prefix=None, verbose=True):
+        perform_str = ''
+        if prefix is not None:
+            perform_str += prefix
+        for key in self.perform_list.keys():
+            if key in ['acc']:
+                perform_str += '%s:%.4f '%(key, self.perform_list[key]/self.sample_count)
+            else:
+                #print('%s:%s'%(key, str(self.perform_list[key]/self.batch_count)), end=' ')
+                perform_str += '%s:%.4e '%(key, self.perform_list[key]/self.batch_count)
+        if verbose:
+            print(perform_str)
+        return perform_str
     def reset_perform(self):
-        #print('aaa')
-        self.loss_count = 0
-        #print(self.loss_count)
-        for key in self.loss_list.keys():
-            self.loss_list[key] = 0.0
-    def get_perform(self, x, y):
-        #x:(batch_size, sequence_length, input_num)
-        #y:(batch_size, sequence_length, output_num)
+        self.batch_count = 0
+        self.sample_count = 0
+        #print(self.batch_count)
+        for key in self.perform_list.keys():
+            self.perform_list[key] = 0.0
+    def cal_perform(self, data):
+        x, y = data['input'], data['output']
+        #x: [batch_size, step_num, input_num]
+        #y: [batch_size, step_num, output_num]
         output, act = self.forward(x)
         #self.dict['act_avg'] = torch.mean(torch.abs(act))
         #print(output.size())
         #input()
-        loss_class = self.class_coeff * self.class_perform_func( torch.squeeze(output[:,-1,:]), y)
-        loss_act = self.act_cons_coeff * torch.mean(act ** 2)
-        loss_weight = self.weight_cons_coeff * ( torch.mean(self.N.get_r() ** 2) )
-        self.loss_list['weight'] = self.loss_list['weight'] + loss_weight.item()
-        self.loss_list['act'] = self.loss_list['act'] + loss_act.item()
-        self.loss_list['class'] = self.loss_list['class'] + loss_class.item()
-        self.loss_count += 1
-        #print(self.loss_count)
+        loss_class = self.main_loss_coeff * self.class_perform_func( torch.squeeze(output[:,-1,:]), y)
+        loss_act = self.act_coeff * torch.mean(act ** 2)
+        loss_weight = self.weight_coeff * ( torch.mean(self.N.get_r() ** 2) )
+        self.perform_list['weight'] = self.perform_list['weight'] + loss_weight.item()
+        self.perform_list['act'] = self.perform_list['act'] + loss_act.item()
+        self.perform_list['class'] = self.perform_list['class'] + loss_class.item()
+        correct_num, sample_num = cal_acc_from_label(output[:, -1, :], y) 
+        self.perform_list['acc'] += correct_num
+        self.batch_count += 1
+        self.sample_count += x.size(0)
+        #print(self.batch_count)
         if self.hebb_coeff==0.0:
             loss_hebb = 0.0 
         else:
-            loss_hebb = self.get_perform_hebb(act)
+            loss_hebb = self.cal_perform_hebb(act)
         return loss_class + loss_act + loss_weight + loss_hebb
-    def get_perform_hebb(self, act):
-        x = torch.squeeze(act[-1, :, :]) #(batch_size, neuron_num)
+    def cal_perform_hebb(self, act):
+        x = torch.squeeze(act[-1, :, :]) # [batch_size, N_num]
         batch_size=x.size(1)
         x = x.detach().cpu().numpy()
         x = torch.from_numpy(x).to(self.device)
         
-        weight=self.N.get_r() #(neuron_num, neuron_num)
-        act_var = torch.var(x, dim=0) #(neuron_num)
+        weight=self.N.get_r() # [N_num, N_num]
+        act_var = torch.var(x, dim=0) # [N_num]
         act_var = act_var * (batch_size - 1)
-        act_mean = torch.mean(x, dim=0).detach() #(neuron_num)
+        act_mean = torch.mean(x, dim=0).detach() # [N_num]
         #convert from tensor and numpy prevents including the process of computing var and mean into the computation graph.
-        #act_std = torch.from_numpy(act_var).to(_perform) ** 0.5
-        #act_mean = torch.from_numpy(act_mean).to(_perform)
+        #act_std = torch.from_numpy(act_var).to(self.device) ** 0.5
+        #act_mean = torch.from_numpy(act_mean).to(self.device)
         act_std = act_var ** 0.5
-        std_divider = torch.mm(torch.unsqueeze(act_std, 1), torch.unsqueeze(act_std, 0)) #(neuron_num, neuron_num)
+        std_divider = torch.mm(torch.unsqueeze(act_std, 1), torch.unsqueeze(act_std, 0)) # [N_num, N_num]
         
         x_normed = (x - act_mean) #broadcast
         act_dot = torch.mm(x_normed.t(), x_normed)
@@ -222,41 +238,33 @@ class RSLP(nn.Module):
                 act_corr[coord[0]][coord[1]] = 0.0
         
         act_corr = act_corr.detach().cpu().numpy()
-        act_corr = torch.from_numpy(act_corr).to(_perform)
+        act_corr = torch.from_numpy(act_corr).to(self.device)
         
-        #print(weight._perform)
-        #print(act_corr._perform)
-        #if(self.training == True):
+        #print(weight.self.device)
+        #print(act_corr.self.device)
+        #if self.training:
             #print(act_corr)
             #print('act_corr')
             #input()
         self.dict['last_act_corr'] = act_corr.detach().cpu()
-        return -hebb_coeff * torch.mean(torch.tanh(torch.abs(weight)) * act_corr)
-    def save(self, net_path):
-        cached_keys = ['weight_cache']
-        for key in cached_keys:
-            if(self.N.dict.get(key) is not None):
-                self.N.dict.pop(key)
-        for key in self.dict['cache'].keys():
-            if(self.dict.get(key) is not None):
-                self.dict.pop(key)      
-
-        f = open(net_path+'state_dict.pth', 'wb')
-        net = self.to(torch._perform('cpu'))
-        torch.save(net.dict, f)
-        net = self.to(_perform)
-        f.close()
+        return - self.hebb_coeff * torch.mean(torch.tanh(torch.abs(weight)) * act_corr)
+    def save(self, save_path, save_name):   
+        ensure_path(save_path)
+        with open(save_path + save_name, 'wb') as f:
+            net = self.to(torch.device('cpu'))
+            torch.save(net.dict, f)
+            net = self.to(self.device)
     def get_weight_ei(self, name, detach=False, positive=True):
-        if(name in self.N.weight_names):
+        if name in self.N.weight_names:
             return self.N.get_weight(name=name, detach=detach, positive=positive)
-        elif(name in self.weight_names):
-            if(name=='b_0'):
+        elif name in self.weight_names:
+            if name in ['b_0']:
                 w = self.b_0
-            elif(name=='i'):
+            elif name in ['i']:
                 w = self.get_i()
-            elif(name=='X->E'):
+            elif name in ['X->E']:
                 w = self.get_i()[:, 0:self.E_num]
-            elif(name=='X->I'):
+            elif name in ['X->I']:
                 w = self.get_i()[:, self.E_num:self.N_num]
         else:
             print('invalid weight name:%s'%(name))
@@ -298,7 +306,7 @@ class RSLP(nn.Module):
         for data in data_loader:
             inputs, labels = data
             inputs=inputs.to(self.device)
-            #labels=labels.to(_perform)
+            #labels=labels.to(self.device)
             count += 1
             label_count += labels.size(0)
             res=self.iter(inputs) #[key](batch_size, iter_time, unit_num)

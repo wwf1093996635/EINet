@@ -9,60 +9,68 @@ import os
 from utils import get_name, get_args
 from utils_model_ import *
 
+def get_cons_func(func_str):
+    if func_str in ['abs']:
+        return lambda x: torch.abs(x)
+    elif func_str in ['square', '^2', '2']:
+        return lambda x: x * x
+    else:
+        raise Exception('Invalid cons_func str: %s'%func_str)
+
 def get_act_func(params):
     name = get_name(params)
     coeff = get_args(params)
-    if name=="none":
+    if name=='none':
         return lambda x:x
-    elif name in ["relu", "ReLU"]:
+    elif name in ['relu', 'ReLU']:
         return lambda x:coeff * F.relu(x)
-    elif name in ["tanh"]:
+    elif name in ['tanh']:
         return lambda x:coeff * torch.tanh(x)
-    elif name=="relu_tanh":
+    elif name=='relu_tanh':
         return lambda x:coeff * F.relu(torch.tanh(x))
-    elif name=="relu+tanh":
+    elif name=='relu+tanh':
         return lambda x:coeff * F.relu(x) + (1.0 - coeff) * F.relu(torch.tanh(x))
-    elif name=="e_1":
+    elif name=='e_1':
         net.act_func=lambda x:F.relu(x)
-    elif name=="i_1":
+    elif name=='i_1':
         net.act_func=lambda x:(F.relu(x))**0.6
-    elif name=="e_2":
+    elif name=='e_2':
         net.act_func=lambda x:(F.relu(x))**0.9
-    elif name=="i_2":
+    elif name=='i_2':
         net.act_func=lambda x:5*(F.relu(x))**0.6
-    elif name=="e_3":
-        if param=="": coeff = 0.1
+    elif name=='e_3':
+        if param=='': coeff = 0.1
         else: coeff = param
         net.act_func = lambda x:coeff*(F.relu(x)) + (1.0-coeff)*(F.relu(torch.tanh(x)))
-    elif(name=="i_3"):
-        if(param==""):
+    elif(name=='i_3'):
+        if(param==''):
             coeff = 0.2
         else:
             coeff = param
         net.act_func = lambda x:coeff*(F.relu(x)) + (1.0-coeff)*(F.relu(torch.tanh(x)))
 
     #old e4_i4 == e3(0.1, thres=1.0)_i3(0.2)
-    elif(name=="e_4"):
-        if(param==""):
+    elif(name=='e_4'):
+        if(param==''):
             coeff = 0.2
         else:
             coeff = param
         net.act_func=lambda x:coeff*(F.relu(x))
-    elif(name=="i_4"):
-        if(param==""):
+    elif(name=='i_4'):
+        if(param==''):
             coeff = 0.4
         else:
             coeff = param
         net.act_func=lambda x:coeff*(F.relu(x))
 
-def set_act_func(net, act_func_des="relu"):
-    if(isinstance(act_func_des, str)):
-        set_act_func_from_name(net, act_func_des)
-    elif(isinstance(act_func_des, dict)):
-        if(net.dict.get("type")!=None and act_func_des.get(net.type)!=None):
-            set_act_func_from_name(net, act_func_des[net.type])
+def set_act_func(net, act_func_str='relu'):
+    if(isinstance(act_func_str, str)):
+        set_act_func_from_name(net, act_func_str)
+    elif(isinstance(act_func_str, dict)):
+        if(net.dict.get('type')!=None and act_func_str.get(net.type)!=None):
+            set_act_func_from_name(net, act_func_str[net.type])
         else:
-            set_act_func_from_name(net, act_func_des["default"])
+            set_act_func_from_name(net, act_func_str['default'])
 
 def cat_dict(dict_0, dict_1, dim_unsqueeze=None, dim=0):
     for key in dict_1.keys():
@@ -80,7 +88,7 @@ def cat_dict(dict_0, dict_1, dim_unsqueeze=None, dim=0):
 
 def get_ei_mask(E_num, N_num, kernel_size=None, device=None):
     if device is None:
-        device = torch.device("cpu")
+        device = torch.device('cpu')
     ei_mask = torch.zeros((N_num, N_num), device=device, requires_grad=False)
     for i in range(0, E_num):
         ei_mask[i][i] = 1.0
@@ -90,7 +98,7 @@ def get_ei_mask(E_num, N_num, kernel_size=None, device=None):
 
 def get_mask(N_num, output_num, device=None):
     if device is None:
-        device = torch.device("cpu")
+        device = torch.device('cpu')
     mask = torch.ones((N_num, output_num), device=device, requires_grad=False)
     return mask
 
@@ -98,18 +106,18 @@ def get_mask_from_tuple(tuple):
     mask = torch.ones(tuple, device=device, requires_grad=False)
     return mask
 
-def init_weight(weight, params, cons_method="abs"):
+def init_weight(weight, params, cons_method='abs'):
     name = get_name(params)
     coeff = get_args(params)
-    if name=="output":
+    if name=='output':
         divider = weight.size(1)
-    elif name=="input":
+    elif name=='input':
         divider = weight.size(0)
 
     lim = coeff / divider
-    #print("coeff=%.4e"%(coeff))
-    #print("lim=%4e"%(lim))
-    if cons_method=="force":
+    #print('coeff=%.4e'%(coeff))
+    #print('lim=%4e'%(lim))
+    if cons_method=='force':
         torch.nn.init.uniform_(weight, 0.0, 2 * lim)
     else:
         torch.nn.init.uniform_(weight, -lim, lim)  
@@ -119,7 +127,7 @@ def save_dict(net, dict=None):
 def load_dict(net, f):
     net.dict=pickle.load(f)
 
-def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_list_0=[], val_loss_list_0=[], val_acc_list_0=[], save_dir="undefined", save=True, evaluate_before_train=True, save_interval=20, evaluate=None, logger=None, mode_name="model"):
+def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_list_0=[], val_loss_list_0=[], val_acc_list_0=[], save_dir='undefined', save=True, evaluate_before_train=True, save_interval=20, evaluate=None, logger=None, mode_name='model'):
     train_loss_list = [0.0 for _ in range(epoch_num)]
     train_acc_list = [0.0 for _ in range(epoch_num)]
     val_loss_list = [0.0 for _ in range(epoch_num)]
@@ -135,7 +143,7 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
         epoch_start=0
         epoch_end=epochs
     else:
-        print("invalid epochs type.")
+        print('invalid epochs type.')
 
     if(evaluate_before_train==True):
         with torch.no_grad():
@@ -144,10 +152,10 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
             val_loss_list[epoch]=val_loss
             val_acc_list[epoch]=val_acc
             if(save==True and epoch%save_interval==0):
-                net_path=save_dir_stat+model_name+"_epoch_%d_0/"%(epoch_start)
+                net_path=save_dir_stat+model_name+'_epoch_%d_0/'%(epoch_start)
                 if not os.path.exists(net_path):
                     os.makedirs(net_path)
-                #torch.save(net.state_dict(), net_path + "torch_save.pth")
+                #torch.save(net.state_dict(), net_path + 'torch_save.pth')
                 net.save(net_path)
     
     for epoch in range(epoch_start, epoch_end+1):
@@ -158,7 +166,7 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
         correct_count=0
         count=0
         for i, data in enumerate(trainloader, 0):
-            #print("\r","progress:%d/50000 "%(labels_count), end="", flush=True)
+            #print('\r','progress:%d/50000 '%(labels_count), end='', flush=True)
             count=count+1
             inputs, labels = data
             inputs=inputs.to(device)
@@ -185,10 +193,10 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
             val_loss_list[epoch]=val_loss
             val_acc_list[epoch]=val_acc
             if(save==True and epoch%save_interval==0):
-                net_path=save_dir_stat+model_name+"_epoch_%d/"%(epoch)
+                net_path=save_dir_stat+model_name+'_epoch_%d/'%(epoch)
                 if not os.path.exists(net_path):
                     os.makedirs(net_path)
-                #torch.save(net.state_dict(), net_path + "torch_save.pth")
+                #torch.save(net.state_dict(), net_path + 'torch_save.pth')
                 net.save(net_path)
 
         logger.write(note0+note1+note2)
@@ -199,10 +207,10 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
         val_loss_list[epoch]=val_loss
         val_acc_list[epoch]=val_acc
         if(save==True and epoch%save_interval==0):
-            net_path=save_dir_stat+model_name+"_epoch_%d/"%(epoch_end)
+            net_path=save_dir_stat+model_name+'_epoch_%d/'%(epoch_end)
             if not os.path.exists(net_path):
                 os.makedirs(net_path)
-            #torch.save(net.state_dict(), net_path + "torch_save.pth")
+            #torch.save(net.state_dict(), net_path + 'torch_save.pth')
             net.save(net_path)
 
     train_loss_list_0 = train_acc_list_0 + train_loss_list
@@ -211,14 +219,14 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
     val_acc_list_0 = val_acc_list_0 + val_acc_list
 
 def test():
-    print("MyLib test.")
+    print('MyLib test.')
 def pytorch_info():
     if(torch.cuda.is_available()==True):
-        print("Cuda is available")
+        print('Cuda is available')
     else:
-        print("Cuda is unavailable")
+        print('Cuda is unavailable')
 
-    print("Torch version is "+torch.__version__)
+    print('Torch version is '+torch.__version__)
 '''
 def prepare_CIFAR10(dataset_dir=CIFAR10_dir, norm=True, augment=False, batch_size=64):
     if(augment==True):
@@ -265,7 +273,7 @@ def evaluate(net, testloader, criterion, scheduler, augment, device):
     loss_total=0.0
     #torch.cuda.empty_cache()
     for data in testloader:
-        #print("\r","progress:%d/%d "%(count,len(testloader)), end="", flush=True)
+        #print('\r','progress:%d/%d '%(count,len(testloader)), end='', flush=True)
         count=count+1
         inputs, labels = data
         inputs=inputs.to(device)
@@ -280,7 +288,7 @@ def evaluate(net, testloader, criterion, scheduler, augment, device):
         loss_total += criterion(outputs, labels).item()
         correct_count+=(torch.max(outputs, 1)[1]==labels).sum().item()
         labels_count+=labels.size(0)
-    #print("\n")
+    #print('\n')
     val_loss=loss_total/count
     val_acc=correct_count/labels_count
     net.train()
@@ -295,7 +303,7 @@ def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
     loss_total=0.0
     #torch.cuda.empty_cache()
     for data in testloader:
-        #print("\r","progress:%d/%d "%(count,len(testloader)), end="", flush=True)
+        #print('\r','progress:%d/%d '%(count,len(testloader)), end='', flush=True)
         count=count+1
         inputs, labels = data
         inputs=inputs.to(device)
@@ -310,7 +318,7 @@ def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
         loss_total += net.get_loss(inputs, labels).item()
         correct_count+=(torch.max(outputs[-1], 1)[1]==labels).sum().item()
         labels_count+=labels.size(0)
-    #print("\n")
+    #print('\n')
     val_loss=loss_total/count
     val_acc=correct_count/labels_count
     net.train()
@@ -389,7 +397,7 @@ def print_training_curve(train_loss_list, train_acc_list, val_loss_list, val_acc
     plt.legend(loc='best')
 
     plt.tight_layout(pad=0.4, w_pad=2.0, h_pad=2.0)
-    plt.savefig("train_statistics_"+model_name+".jpg")
+    plt.savefig('train_statistics_'+model_name+'.jpg')
     print(net.parameters())
     for parameters in net.parameters():
         print(parameters)
@@ -397,19 +405,19 @@ def print_training_curve(train_loss_list, train_acc_list, val_loss_list, val_acc
     for name,parameters in net.named_parameters():
         print(name,':',parameters.size())
 
-    plt.hist(r1, normed=True, facecolor="blue", edgecolor="black", alpha=0.7)
-    plt.xlabel("weights")
-    plt.ylabel("frequency")
-    plt.title("r1 Distribution")
-    plt.savefig("r1_hist.jpg")
+    plt.hist(r1, normed=True, facecolor='blue', edgecolor='black', alpha=0.7)
+    plt.xlabel('weights')
+    plt.ylabel('frequency')
+    plt.title('r1 Distribution')
+    plt.savefig('r1_hist.jpg')
 
 def get_layer(layer_type, layer_dict):
-    if(layer_type in ["maxpool"]):
-        layer = nn.MaxPool2d(kernel_size=layer_dict["kernel_size"], stride=layer_dict["stride"], padding=layer_dict["padding"])
-    elif(layer_type in ["global_avg"]):
+    if(layer_type in ['maxpool']):
+        layer = nn.MaxPool2d(kernel_size=layer_dict['kernel_size'], stride=layer_dict['stride'], padding=layer_dict['padding'])
+    elif(layer_type in ['global_avg']):
         layer = lambda x:torch.mean(x, dim=(2,3), keepdim=False)
     else:
-        print("invalid layer_type:", end='')
+        print('invalid layer_type:', end='')
         print(layer_type)
         input()
     return layer

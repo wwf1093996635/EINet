@@ -5,7 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_model import init_weight, get_ei_mask, get_func, get_cons_func
+from utils import set_instance_attr
+from utils_model import init_weight, get_ei_mask, get_mask, get_cons_func, get_act_func
 
 #training parameters.
 class Neurons_LIF(nn.Module):
@@ -13,7 +14,8 @@ class Neurons_LIF(nn.Module):
         super(Neurons_LIF, self).__init__()
         self.dict = dict_
         
-        self.device = self.dict['device']
+        set_instance_attr(self, self.dict)
+        #self.device = self.dict['device']
         
         if load:
             self.f = self.dict['f']
@@ -37,27 +39,25 @@ class Neurons_LIF(nn.Module):
 
         # set recurrent weight
         if self.dict['noself']:
-            #print('aaa')
             self.r_self_mask = torch.ones((self.dict['N_num'], self.dict['N_num']), device=self.device, requires_grad=False)
             for i in range(self.dict['N_num']):
                 self.r_self_mask[i][i] = 0.0
             self.get_r_noself = lambda :self.r * self.r_self_mask
         else:
-            #print('bbb')
             self.get_r_noself = lambda :self.r
         self.ei_mask = None
         
-        self.cons_func = get_cons_func(cons_method)
-        if('r' in self.dict['Dale']):
+        self.cons_func = get_cons_func(self.dict['cons_method'])
+        if 'r' in self.dict['Dale']:
             #print('ccc')
-            self.ei_mask = get_ei_mask(E_num=self.dict['E_num'], N_num=self.dict['N_num'])
+            self.ei_mask = get_ei_mask(E_num=self.dict['E_num'], N_num=self.dict['N_num']).to(self.device)
             self.get_r_ei = lambda :torch.mm(self.ei_mask, self.cons_func(self.get_r_noself()))
         else:
             #print('ddd')
             self.get_r_ei = self.get_r_noself
-        if('r' in self.dict['mask']):
+        if 'r' in self.dict['mask']:
             #print('eee')
-            self.r_mask = get_mask(N_num=self.dict['N_num'], output_num=self.dict['N_num'])
+            self.r_mask = get_mask(N_num=self.dict['N_num'], output_num=self.dict['N_num']).to(self.device)
             self.get_r_mask = lambda :self.r_mask * self.get_r_ei()
         else:
             #print('fff')

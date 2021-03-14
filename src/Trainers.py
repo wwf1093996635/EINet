@@ -59,7 +59,10 @@ class Trainer():
             for data in train_loader:
                 #print('using batch No.%d\n'%(batch_num))
                 inputs, labels = data
-                self.optimizer.train(inputs.to(self.model.device), labels.to(self.model.device))
+                self.optimizer.train({
+                    'input': inputs.to(self.model.device),
+                    'output': labels.to(self.model.device),
+                })
                 batch_num += 1
             train_perform = self.model.get_perform(prefix='train: ', verbose=True)
             self.train_performs[self.epoch_now] = train_perform
@@ -68,7 +71,10 @@ class Trainer():
             self.model.reset_perform()
             for data in list(train_loader):
                 inputs, labels = data
-                self.optimizer.evaluate(inputs.to(self.model.device), labels.to(self.model.device))
+                self.optimizer.evaluate({
+                    'input': inputs.to(self.model.device), 
+                    'output': labels.to(self.model.device)
+                })
             test_perform = self.model.get_perform(prefix='test: ', verbose=True)
             self.test_performs[self.epoch_now] = test_perform
             if self.save_model and self.epoch_now%self.save_interval==1:

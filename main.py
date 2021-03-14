@@ -130,8 +130,11 @@ def get_param_files(args, verbose=True):
     if use_config_file: # get param files according to a config file.
         if verbose:
             print('Setting params according to config file.')
-        config_file = select_file(args.config, config_files, default_file=None, 
-            match_prefix='config_', match_suffix='.py', file_type='config')
+        if len(config_files)==1:
+            config_file = config_files[0]
+        else:
+            config_file = select_file(args.config, config_files, default_file=None, 
+                match_prefix='config_', match_suffix='.py', file_type='config')
         print(config_file)
         Config_Param = importlib.import_module(path_to_module(path) + remove_suffix(config_file))
         try:
@@ -309,6 +312,8 @@ def copy_project_files(args):
     trainer_file = param_files['trainer_file']
     data_loader_file = param_files['data_loader_file']
     component_files = [model_file, optimizer_file, trainer_file, data_loader_file]
+    if param_files.get('config_file') is not None:
+        component_files.append(param_files['config_file'])
     #print(component_files)
     copy_files(component_files, path_from=param_path, path_to=path + param_path)
 
