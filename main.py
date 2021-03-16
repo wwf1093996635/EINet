@@ -1,7 +1,7 @@
 # run this script to do different tasks
 
 # python main.py --task copy --path ./Instances/TP-1/  //move necessary files for training and analysis to path.
-
+# python main.py -t backup -p /data4/wangweifan/.backup/Hebb //backup project folder files to another given path.
 
 # Every component, such as model, optimizer, trainer, data_loader, is initialized according to a dict in a .py file.
 
@@ -17,7 +17,7 @@ sys.path.append('./src/')
 
 import config_sys
 from utils import build_model, build_optimizer, build_trainer, build_data_loader, get_device, remove_suffix, select_file, ensure_path
-from utils import scan_files, copy_files, path_to_module
+from utils import scan_files, copy_files, path_to_module, copy_folder
 from Trainers import Trainer
 import Models
 import Optimizers
@@ -317,6 +317,13 @@ def copy_project_files(args):
     #print(component_files)
     copy_files(component_files, path_from=param_path, path_to=path + param_path)
 
+def backup(args):
+    if args.path is None:
+        path_to = '/data4/wangweifan/'
+    else:
+        path_to = args.path
+    copy_folder(path_from=os.path.abspath('../../'), path_to=path_to)
+
 if __name__=='__main__':
     if args.task is None:
         task = 'train'
@@ -327,5 +334,7 @@ if __name__=='__main__':
         copy_project_files(args)
     elif task in ['train']:
         train(args)
+    elif task in ['backup']:
+        backup(args)
     else:
         raise Exception('Invalid task: %s'%str(task))

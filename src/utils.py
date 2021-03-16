@@ -43,3 +43,4 @@ def get_device(args):
             print(args.device)
             return args.device
     return get_best_gpu()
+
