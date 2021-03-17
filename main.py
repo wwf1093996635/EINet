@@ -319,7 +319,7 @@ def copy_project_files(args):
 
 def backup(args):
     if args.path is None:
-        path_to = '/data4/wangweifan/'
+        path_to = '/data4/wangweifan/.ssh/Hebb/'
     else:
         path_to = args.path
     copy_folder(path_from=os.path.abspath('../../'), path_to=path_to)

@@ -7,10 +7,17 @@ from Optimizers.Optimizer import *
 from Optimizers.Optimizer import Optimizer
 
 
-class Optimizer_BP(Optimizer):
+class Optimizer_TP(Optimizer):
     def __init__(self, dict_=None, load=False, options=None):
         super().__init__(dict_, load, options)
-    
+        self.dict = dict_
+        self.mode = self.dict.setdefault('mode', 'train_on_r')
+        if self.mode in ['train_on_r']:
+            self.train = self.train_on_r
+        elif self.mode in ['train_on_u']:
+            self.train = self.train_on_u
+        else:
+            raise Exception('Optimizer_TP: Invalid mode: %s'%self.mode)
     '''
     def receive_options(self, options):
         self.options = options
@@ -32,7 +39,7 @@ class Optimizer_BP(Optimizer):
     def bind_model(self, model):
         self.model = model
     def update_before_train(self):
-        print(self.dict['update_before_train'])
+        #print(self.dict['update_before_train'])
         self.update_before_train_items = search_dict(self.dict, ['update_before_train'], default=[], write_default=True)
         
         for item in self.update_before_train_items:
@@ -42,13 +49,46 @@ class Optimizer_BP(Optimizer):
             else:
                 raise Exception('Invalid update_before_train item: %s'%str(item))
     def build_optimizer(self, load=False):
-        self.optimizer = build_optimizer(self.dict['optimizer_dict'], model=self.model, load=load)
-    def train(self, data):
+        self.optimizer = build_optimizer(self.dict['optimizer_forward'], model=self.model, load=load)
+        self.optimizer_rec = build_optimizer(self.dict['optimizer_rec'], model=self.model, load=load)
+        self.optimizer_out = build_optimizer(self.dict['optimizer_out'], model=self.model, load=load)
+    def build_decoder(self, load=False): 
+        self.decoder_out = self.build_decoder_single(self.dict['decoder_rec'], load=load)
+        self.decoder_rec = self.build_decoder_single(self.dict['decoder_out'], load=load)
+
+    def build_decoder_single(self, dict_, load=False):
+    def build_decoder_mlp(self):
+    def train_on_r(self, data, step_num=None, model=None):
+        x, y = data['input'], ['output']
+        if step_num is None:
+            step_num = self.model.step_num
+        if model is None:
+            model = self.model
+        # forward
+        r = torch.zeros([x.size(0), x.size(1)])
+        for time in range(step_num):
+            state = self.model.forward_once({'r':r, 'x':x})
+            
+
+
+
+        # train decoder
+
+        # train model
+
         self.optimizer.zero_grad()
         loss = self.model.cal_perform(data)
         #loss = results['loss']
         loss.backward()
         self.optimizer.step()
+    def train_on_u(self, data):
+
+        # forward
+
+        # train decoder
+
+        # train model
+
     def evaluate(self, data):
         self.optimizer.zero_grad()
         self.model.reset_perform()
